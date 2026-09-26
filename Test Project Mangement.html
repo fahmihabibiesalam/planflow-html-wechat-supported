@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlanFlow — Project Scheduler</title>
+<style>
+:root{
+  --bg:#0f1116; --bg2:#161a22; --bg3:#1e232e; --bg4:#252b38;
+  --line:#2a3040; --txt:#e6e9ef; --muted:#8b93a7; --muted2:#5f6779;
+  --acc:#4a7dff; --acc2:#7c5cff;
+  --crit:#ff4d5e; --high:#ff9f43; --med:#4a7dff; --low:#6b7280;
+  --ok:#22c55e; --warn:#f59e0b; --purple:#a855f7;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg); color:var(--txt); font-size:13.5px; overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#333b4d;border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:#444d63}
+
+/* ---------- LAYOUT ---------- */
+.app{display:flex;height:100vh}
+.sidebar{
+  width:236px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+}
+.brand{
+  padding:16px 18px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--line);
+}
+.brand .logo{
+  width:30px;height:30px;border-radius:8px;
+  background:linear-gradient(135deg,var(--acc),var(--acc2));
+  display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;
+}
+.brand h1{font-size:14.5px;font-weight:700;letter-spacing:-.2px}
+.brand small{display:block;font-size:10.5px;color:var(--muted2);font-weight:500}
+
+.nav{padding:12px 10px;display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto}
+.nav-title{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);padding:12px 10px 6px;font-weight:700}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;
+  color:var(--muted);cursor:pointer;border:none;background:none;font:inherit;
+  width:100%;text-align:left;transition:.12s;font-weight:500;
+}
+.nav-item:hover{background:var(--bg3);color:var(--txt)}
+.nav-item.active{background:rgba(74,125,255,.14);color:#8fb0ff;font-weight:600}
+.nav-item .ico{width:16px;text-align:center;font-size:14px;opacity:.9}
+.nav-item .cnt{
+  margin-left:auto;font-size:10.5px;background:var(--bg4);padding:1px 6px;
+  border-radius:20px;color:var(--muted);font-weight:600;
+}
+.nav-item.active .cnt{background:rgba(74,125,255,.25);color:#a8c2ff}
+
+.side-foot{padding:12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted2)}
+
+/* ---------- MAIN ---------- */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{
+  height:58px;flex-shrink:0;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:14px;padding:0 20px;background:var(--bg2);
+}
+.topbar h2{font-size:15.5px;font-weight:700;letter-spacing:-.2px}
+.topbar .sub{font-size:11.5px;color:var(--muted2);margin-top:1px}
+.topbar .spacer{flex:1}
+.content{flex:1;overflow-y:auto;padding:20px 22px 60px}
+
+/* ---------- BUTTONS ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:7px;
+  border:1px solid var(--line);background:var(--bg3);color:var(--txt);
+  font:inherit;font-weight:600;font-size:12.5px;cursor:pointer;transition:.12s;white-space:nowrap;
+}
+.btn:hover{background:var(--bg4);border-color:#3a4256}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.primary:hover{background:#3d6ef0}
+.btn.danger{color:#ff8b96;border-color:#4a2530;background:rgba(255,77,94,.08)}
+.btn.danger:hover{background:rgba(255,77,94,.16)}
+.btn.sm{padding:4px 9px;font-size:11.5px}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover{background:var(--bg3)}
+
+/* ---------- CARDS ---------- */
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.card h3{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.grid{display:grid;gap:14px}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:16px}
+.stat{
+  background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 16px;position:relative;overflow:hidden;
+}
+.stat::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--acc)}
+.stat.ok::after{background:var(--ok)} .stat.warn::after{background:var(--warn)}
+.stat.crit::after{background:var(--crit)} .stat.pur::after{background:var(--purple)}
+.stat .lbl{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.stat .val{font-size:26px;font-weight:800;margin-top:5px;letter-spacing:-.5px}
+.stat .foot{font-size:11px;color:var(--muted2);margin-top:2px}
+
+/* ---------- TABLE ---------- */
+table{width:100%;border-collapse:collapse}
+th{
+  text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;
+  color:var(--muted2);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:var(--bg2);z-index:2;
+}
+td{padding:10px;border-bottom:1px solid #212734;vertical-align:middle}
+tbody tr{transition:.1s;cursor:pointer}
+tbody tr:hover{background:var(--bg3)}
+.t-title{font-weight:600;font-size:13px}
+.t-desc{font-size:11px;color:var(--muted2);margin-top:2px;max-width:320px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.badge{
+  display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:20px;
+  font-size:10.5px;font-weight:700;letter-spacing:.2px;white-space:nowrap;
+}
+.badge .dot{width:6px;height:6px;border-radius:50%}
+
+.wbar{height:5px;background:var(--bg4);border-radius:4px;overflow:hidden;min-width:60px}
+.wbar i{display:block;height:100%;border-radius:4px;background:var(--acc)}
+
+.pbar{height:5px;background:var(--bg4);border-radius:4px;overflow:hidden;width:70px}
+.pbar i{display:block;height:100%;background:var(--ok);border-radius:4px}
+
+.avatar{
+  width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+  font-size:10px;font-weight:800;color:#fff;flex-shrink:0;
+}
+.who{display:flex;align-items:center;gap:7px}
+.who span{font-size:12px;font-weight:500}
+
+/* ---------- GANTT ---------- */
+.gantt-wrap{overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg2)}
+.gantt{min-width:max-content}
+.gantt-head{display:flex;position:sticky;top:0;z-index:5;background:var(--bg2);border-bottom:1px solid var(--line)}
+.gantt-corner{
+  width:210px;flex-shrink:0;padding:8px 12px;font-size:10.5px;font-weight:700;
+  color:var(--muted2);text-transform:uppercase;letter-spacing:.6px;
+  border-right:1px solid var(--line);display:flex;align-items:flex-end;
+  position:sticky;left:0;background:var(--bg2);z-index:6;
+}
+.gantt-months{display:flex;height:26px}
+.gantt-month{
+  border-right:1px solid var(--line);font-size:11px;font-weight:700;color:var(--muted);
+  padding:6px 8px;white-space:nowrap;overflow:hidden;background:var(--bg3);
+}
+.gantt-daynums{display:flex;height:26px;border-top:1px solid var(--line)}
+.gantt-day{
+  flex-shrink:0;font-size:10px;display:grid;place-items:center;color:var(--muted2);
+  border-right:1px solid #1c212c;font-weight:600;
+}
+.gantt-day.off{background:#12151c;color:#454c5e}
+.gantt-day.we{color:#5a6274}
+.gantt-day.today{background:rgba(74,125,255,.18);color:#8fb0ff;font-weight:800}
+
+.gantt-body{position:relative}
+.gantt-group{
+  display:flex;border-bottom:1px solid var(--line);background:var(--bg3);
+}
+.gantt-group .gl{
+  width:210px;flex-shrink:0;padding:6px 12px;display:flex;align-items:center;gap:8px;
+  border-right:1px solid var(--line);position:sticky;left:0;background:var(--bg3);z-index:3;
+  font-size:11.5px;font-weight:700;
+}
+.gantt-row{display:flex;border-bottom:1px solid #1c212c;min-height:38px}
+.gantt-row:hover{background:#191e28}
+.gantt-label{
+  width:210px;flex-shrink:0;padding:8px 12px;border-right:1px solid var(--line);
+  position:sticky;left:0;background:var(--bg2);z-index:3;display:flex;flex-direction:column;
+  justify-content:center;gap:2px;
+}
+.gantt-row:hover .gantt-label{background:#191e28}
+.gantt-label .nm{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt-label .mt{font-size:10px;color:var(--muted2)}
+.gantt-track{position:relative;flex-shrink:0;display:flex}
+.gantt-grid{position:absolute;inset:0;display:flex;pointer-events:none}
+.gantt-grid div{flex-shrink:0;border-right:1px solid #1c212c;height:100%}
+.gantt-grid div.off{background:#12151c}
+.gantt-grid div.today{background:rgba(74,125,255,.09)}
+
+.bar{
+  position:absolute;top:9px;height:20px;border-radius:5px;cursor:pointer;
+  display:flex;align-items:center;padding:0 7px;font-size:10.5px;font-weight:700;
+  color:#fff;overflow:hidden;white-space:nowrap;transition:.12s;
+  box-shadow:0 1px 4px rgba(0,0,0,.35);
+}
+.bar:hover{filter:brightness(1.2);transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,.5)}
+.bar .pfill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.25);pointer-events:none}
+.bar span{position:relative;z-index:2;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+
+/* ---------- CALENDAR ---------- */
+.cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
+.cal-head div{text-align:center;font-size:10.5px;font-weight:700;color:var(--muted2);
+  text-transform:uppercase;letter-spacing:.6px;padding:6px 0}
+.cal-head div.we{color:#5a6274}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-cell{
+  background:var(--bg2);border:1px solid var(--line);border-radius:8px;
+  min-height:106px;padding:7px;display:flex;flex-direction:column;gap:4px;transition:.12s;
+}
+.cal-cell:hover{border-color:#3a4256}
+.cal-cell.out{opacity:.35}
+.cal-cell.off{background:#12151c}
+.cal-cell.today{border-color:var(--acc);box-shadow:0 0 0 1px rgba(74,125,255,.35)}
+.cal-num{font-size:11.5px;font-weight:700;color:var(--muted)}
+.cal-cell.today .cal-num{color:#8fb0ff}
+.cal-chip{
+  font-size:10.5px;padding:2px 6px;border-radius:4px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;
+  border-left:3px solid;background:var(--bg3);transition:.1s;
+}
+.cal-chip:hover{background:var(--bg4)}
+.cal-more{font-size:10px;color:var(--muted2);font-weight:600;padding-left:2px}
+
+/* ---------- MODAL ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(6,8,12,.72);backdrop-filter:blur(3px);
+  display:none;align-items:flex-start;justify-content:center;z-index:100;padding:40px 16px;overflow-y:auto;
+}
+.overlay.show{display:flex}
+.modal{
+  background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+  width:100%;max-width:560px;box-shadow:0 24px 70px rgba(0,0,0,.6);
+  animation:pop .16s ease-out;
+}
+@keyframes pop{from{transform:translateY(-14px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+.modal-head{
+  padding:16px 20px;border-bottom:1px solid var(--line);display:flex;
+  align-items:center;justify-content:space-between;
+}
+.modal-head h3{font-size:14.5px;font-weight:700}
+.modal-body{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.modal-foot{
+  padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;
+  justify-content:flex-end;align-items:center;
+}
+.modal-foot .left{margin-right:auto;display:flex;gap:8px}
+
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.field input,.field select,.field textarea{
+  background:var(--bg3);border:1px solid var(--line);border-radius:7px;padding:8px 10px;
+  color:var(--txt);font:inherit;font-size:13px;outline:none;transition:.12s;width:100%;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  border-color:var(--acc);box-shadow:0 0 0 3px rgba(74,125,255,.15);
+}
+.field textarea{resize:vertical;min-height:62px;font-family:inherit}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.hint{font-size:11px;color:var(--muted2)}
+.preview{
+  background:rgba(74,125,255,.08);border:1px solid rgba(74,125,255,.22);
+  border-radius:7px;padding:9px 12px;font-size:11.5px;color:#a8c2ff;font-weight:600;
+}
+
+/* ---------- MISC ---------- */
+.chk-row{display:flex;gap:8px;flex-wrap:wrap}
+.chk{
+  display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:7px;
+  background:var(--bg3);border:1px solid var(--line);cursor:pointer;font-size:12px;
+  font-weight:600;user-select:none;transition:.12s;
+}
+.chk:hover{border-color:#3a4256}
+.chk.on{background:rgba(74,125,255,.14);border-color:rgba(74,125,255,.45);color:#a8c2ff}
+.chk input{display:none}
+
+.empty{
+  text-align:center;padding:50px 20px;color:var(--muted2);
+}
+.empty .big{font-size:34px;margin-bottom:10px;opacity:.5}
+.empty p{font-size:12.5px;margin-bottom:14px}
+
+.holiday-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.hchip{
+  display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--line);
+  padding:4px 8px 4px 10px;border-radius:20px;font-size:11.5px;font-weight:600;
+}
+.hchip button{
+  background:none;border:none;color:var(--muted2);cursor:pointer;font-size:14px;
+  line-height:1;padding:0 2px;
+}
+.hchip button:hover{color:var(--crit)}
+
+.res-card{display:flex;align-items:center;gap:12px;padding:12px 14px;
+  background:var(--bg3);border:1px solid var(--line);border-radius:9px}
+.res-card .avatar{width:34px;height:34px;font-size:12px}
+
+.toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--bg4);border:1px solid var(--line);padding:10px 18px;border-radius:9px;
+  font-size:12.5px;font-weight:600;z-index:200;transition:.25s;opacity:0;
+  box-shadow:0 8px 30px rgba(0,0,0,.5);
+}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);align-items:center}
+.legend b{display:flex;align-items:center;gap:5px;font-weight:600}
+.legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div>
+        <h1>PlanFlow</h1>
+        <small>Project Scheduler</small>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-title">Workspace</div>
+      <button class="nav-item active" data-view="dashboard"><span class="ico">▦</span> Dashboard</button>
+      <button class="nav-item" data-view="agenda"><span class="ico">☰</span> Agenda <span class="cnt" id="cnt-agenda">0</span></button>
+      <button class="nav-item" data-view="timeline"><span class="ico">▬</span> Timeline</button>
+      <button class="nav-item" data-view="calendar"><span class="ico">▤</span> Kalender</button>
+      <div class="nav-title">Pengaturan</div>
+      <button class="nav-item" data-view="resources"><span class="ico">◉</span> Resources <span class="cnt" id="cnt-res">0</span></button>
+      <button class="nav-item" data-view="settings"><span class="ico">⚙</span> Hari Kerja</button>
+    </nav>
+    <div class="side-foot">
+      <div id="foot-info">—</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <h2 id="page-title">Dashboard</h2>
+        <div class="sub" id="page-sub">Ringkasan proyek</div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn" id="btn-today">Hari Ini</button>
+      <button class="btn primary" id="btn-new-task">＋ Task Baru</button>
+    </header>
+    <div class="content" id="view"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   KONSTANTA
+   ========================================================= */
+const PRIORITY = {
+  critical:{label:'Critical', color:'#ff4d5e'},
+  high:    {label:'High',     color:'#ff9f43'},
+  medium:  {label:'Medium',   color:'#4a7dff'},
+  low:     {label:'Low',      color:'#6b7280'}
+};
+const STATUS = {
+  todo:  {label:'To Do',       color:'#6b7280'},
+  doing: {label:'In Progress', color:'#4a7dff'},
+  review:{label:'In Review',   color:'#a855f7'},
+  done:  {label:'Done',        color:'#22c55e'}
+};
+const DAY_NAMES = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli',
+                     'Agustus','September','Oktober','November','Desember'];
+const DAY_W = 34;   // lebar kolom hari pada timeline (px)
+const LS_KEY = 'planflow.v2';
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let state = {
+  resources: [],
+  tasks: [],
+  settings: { workDays:[1,2,3,4,5], hoursPerDay:8, holidays:[] }
+};
+let view = 'dashboard';
+let calCursor = new Date();
+
+/* =========================================================
+   UTIL TANGGAL
+   ========================================================= */
+const uid = () => Math.random().toString(36).slice(2,10);
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseD = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const todayStr = () => ymd(new Date());
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const fmtID = s => {
+  const d = parseD(s);
+  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
+};
+const fmtShort = s => {
+  const d = parseD(s);
+  return `${d.getDate()}/${d.getMonth()+1}`;
+};
+
+function isWorkday(d){
+  const ds = ymd(d);
+  if(state.settings.holidays.includes(ds)) return false;
+  return state.settings.workDays.includes(d.getDay());
+}
+
+/** Geser sejumlah hari kerja (bisa negatif) */
+function shiftWorkDays(str, n){
+  let d = parseD(str);
+  const step = n >= 0 ? 1 : -1;
+  let c = Math.abs(n);
+  let guard = 0;
+  while(c > 0 && guard++ < 3000){
+    d = addDays(d, step);
+    if(isWorkday(d)) c--;
+  }
+  return ymd(d);
+}
+
+/** Tanggal selesai: start + (durasi-1) hari kerja */
+function endDateOf(startStr, duration){
+  const dur = Math.max(1, parseInt(duration) || 1);
+  let d = parseD(startStr);
+  let guard = 0;
+  while(!isWorkday(d) && guard++ < 400) d = addDays(d, 1);
+  let count = 1;
+  while(count < dur && guard++ < 3000){
+    d = addDays(d, 1);
+    if(isWorkday(d)) count++;
+  }
+  return ymd(d);
+}
+
+/** Jumlah hari kalender antara 2 tanggal */
+const daysBetween = (a,b) => Math.round((parseD(b) - parseD(a)) / 86400000);
+
+/* =========================================================
+   PERSISTENCE
+   ========================================================= */
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){
+      const p = JSON.parse(raw);
+      if(p && p.tasks && p.resources){
+        state = Object.assign(state, p);
+        state.settings = Object.assign({workDays:[1,2,3,4,5],hoursPerDay:8,holidays:[]}, p.settings||{});
+        return true;
+      }
+    }
+  }catch(e){}
+  return false;
+}
+
+/* =========================================================
+   SEED DATA
+   ========================================================= */
+function seed(){
+  const t = todayStr();
+  state.resources = [
+    {id:uid(), name:'Fahmi Habibie',   role:'Frontend Developer', color:'#4a7dff'},
+    {id:uid(), name:'Siti Nurhaliza', role:'Backend Developer',  color:'#22c55e'},
+    {id:uid(), name:'Budi Santoso',   role:'UI/UX Designer',     color:'#a855f7'},
+    {id:uid(), name:'Rina Melati',    role:'QA Engineer',        color:'#f59e0b'}
+  ];
+  const [fahmi, siti, budi, rina] = state.resources;
+  const mk = (title, desc, who, off, dur, weight, prio, status, prog) => ({
+    id: uid(), title, desc,
+    assigneeId: who.id,
+    start: shiftWorkDays(t, off),
+    duration: dur, weight, priority: prio, status, progress: prog
+  });
+
+  state.tasks = [
+    mk('Riset kebutuhan & user flow','Wawancara stakeholder + draft flow utama',
+       budi,  -6, 3, 10, 'high',   'done',  100),
+    mk('Desain wireframe dashboard','Low-fi wireframe semua halaman utama',
+       budi,  -3, 4, 15, 'high',   'done',  100),
+    mk('Setup arsitektur backend','Inisialisasi repo, CI/CD, dan skema database',
+       siti,  -1, 5, 20, 'critical','doing', 45),
+    mk('Implementasi halaman login','Auth, validasi form, dan session handling',
+       fahmi,   0, 4, 15, 'high',   'doing',  60),
+    mk('Komponen UI reusable','Button, modal, table, form control',
+       fahmi,   2, 6, 12, 'medium', 'todo',    0),
+    mk('Integrasi API dashboard','Hubungkan frontend ke endpoint backend',
+       fahmi,   7, 5, 18, 'high',   'todo',    0),
+    mk('Test case & QA regression','Menyusun test case dan eksekusi regresi',
+       rina,   9, 5, 12, 'medium', 'todo',    0),
+    mk('Dokumentasi & deployment','Panduan deploy dan dokumentasi API',
+       siti,  13, 3,  8, 'low',    'todo',    0)
+  ];
+  save();
+}
+
+/* =========================================================
+   KOMPUTASI
+   ========================================================= */
+function taskEnd(t){ return endDateOf(t.start, t.duration); }
+function resById(id){ return state.resources.find(r => r.id === id); }
+function initials(name){
+  return name.split(' ').filter(Boolean).slice(0,2).map(w => w[0]).join('').toUpperCase();
+}
+function taskInRange(t, dateStr){
+  return dateStr >= t.start && dateStr <= taskEnd(t);
+}
+function isOverdue(t){
+  return t.status !== 'done' && taskEnd(t) < todayStr();
+}
+function nextId(){ return uid(); }
+
+/* =========================================================
+   RENDER ROOT
+   ========================================================= */
+function render(){
+  document.querySelectorAll('.nav-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === view));
+
+  const titles = {
+    dashboard:['Dashboard','Ringkasan status & beban kerja proyek'],
+    agenda:   ['Agenda Pekerjaan','Daftar seluruh task beserta bobot dan penanggung jawab'],
+    timeline: ['Timeline (Gantt)','Visualisasi jadwal per resource'],
+    calendar: ['Kalender','Distribusi agenda per tanggal'],
+    resources:['Resources','Anggota tim dan beban kerjanya'],
+    settings: ['Hari Kerja & Libur','Konfigurasi hari kerja, jam kerja, dan tanggal libur']
+  };
+  document.getElementById('page-title').textContent = titles[view][0];
+  document.getElementById('page-sub').textContent   = titles[view][1];
+
+  document.getElementById('cnt-agenda').textContent = state.tasks.length;
+  document.getElementById('cnt-res').textContent    = state.resources.length;
+
+  const done = state.tasks.filter(t => t.status === 'done').length;
+  document.getElementById('foot-info').innerHTML =
+    `<b>${state.tasks.length - done}</b> task aktif · <b>${done}</b> selesai`;
+
+  const c = document.getElementById('view');
+  if(view === 'dashboard')      c.innerHTML = viewDashboard();
+  else if(view === 'agenda')    c.innerHTML = viewAgenda();
+  else if(view === 'timeline')  c.innerHTML = viewTimeline();
+  else if(view === 'calendar')  c.innerHTML = viewCalendar();
+  else if(view === 'resources') c.innerHTML = viewResources();
+  else if(view === 'settings')  c.innerHTML = viewSettings();
+}
+
+/* =========================================================
+   VIEW: DASHBOARD
+   ========================================================= */
+function viewDashboard(){
+  const total = state.tasks.length;
+  const doing = state.tasks.filter(t => t.status === 'doing').length;
+  const done  = state.tasks.filter(t => t.status === 'done').length;
+  const late  = state.tasks.filter(isOverdue).length;
+  const totalWeight = state.tasks.reduce((s,t) => s + (+t.weight||0), 0);
+  const doneWeight  = state.tasks.filter(t=>t.status==='done')
+                                 .reduce((s,t) => s + (+t.weight||0), 0);
+  const pct = totalWeight ? Math.round(doneWeight / totalWeight * 100) : 0;
+
+  // Beban kerja per resource
+  const load = state.resources.map(r => {
+    const ts = state.tasks.filter(t => t.assigneeId === r.id && t.status !== 'done');
+    return {...r, count: ts.length, weight: ts.reduce((s,t)=>s+(+t.weight||0),0)};
+  }).sort((a,b) => b.weight - a.weight);
+  const maxLoad = Math.max(1, ...load.map(l => l.weight));
+
+  // Deadline terdekat
+  const upcoming = state.tasks
+    .filter(t => t.status !== 'done')
+    .sort((a,b) => taskEnd(a).localeCompare(taskEnd(b)))
+    .slice(0,6);
+
+  return `
+  <div class="stats">
+    <div class="stat">
+      <div class="lbl">Total Task</div>
+      <div class="val">${total}</div>
+      <div class="foot">${doing} sedang dikerjakan</div>
+    </div>
+    <div class="stat ok">
+      <div class="lbl">Selesai</div>
+      <div class="val">${done}</div>
+      <div class="foot">${pct}% dari total bobot</div>
+    </div>
+    <div class="stat pur">
+      <div class="lbl">Total Bobot</div>
+      <div class="val">${totalWeight}</div>
+      <div class="foot">poin pekerjaan</div>
+    </div>
+    <div class="stat ${late ? 'crit':'warn'}">
+      <div class="lbl">Terlambat</div>
+      <div class="val">${late}</div>
+      <div class="foot">${late ? 'perlu perhatian' : 'semua on-track'}</div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.35fr 1fr;align-items:start">
+    <div class="card">
+      <h3>⏱ Deadline Terdekat</h3>
+      ${upcoming.length ? `
+      <table>
+        <thead><tr><th>Task</th><th>PIC</th><th>Prioritas</th><th>Selesai</th><th style="width:80px">Progress</th></tr></thead>
+        <tbody>
+        ${upcoming.map(t => {
+          const r = resById(t.assigneeId);
+          const late2 = isOverdue(t);
+          return `<tr data-task="${t.id}">
+            <td><div class="t-title">${esc(t.title)}</div>
+                <div class="t-desc">${esc(t.desc||'—')}</div></td>
+            <td>${r ? `<div class="who"><div class="avatar" style="background:${r.color}">${initials(r.name)}</div><span>${esc(r.name.split(' ')[0])}</span></div>` : '<span class="t-desc">—</span>'}</td>
+            <td>${prioBadge(t.priority)}</td>
+            <td style="color:${late2?'#ff8b96':'var(--muted)'};font-weight:600">${fmtShort(taskEnd(t))}</td>
+            <td><div class="pbar"><i style="width:${t.progress||0}%"></i></div></td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>` : `<div class="empty"><div class="big">✓</div><p>Belum ada task aktif</p></div>`}
+    </div>
+
+    <div class="card">
+      <h3>👥 Beban Kerja Tim</h3>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        ${load.length ? load.map(l => `
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+              <div class="avatar" style="background:${l.color}">${initials(l.name)}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12.5px;font-weight:600">${esc(l.name)}</div>
+                <div style="font-size:10.5px;color:var(--muted2)">${esc(l.role)}</div>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:var(--muted)">
+                ${l.weight} <span style="color:var(--muted2);font-weight:500">bobot</span>
+              </div>
+            </div>
+            <div class="wbar"><i style="width:${Math.round(l.weight/maxLoad*100)}%;background:${l.color}"></i></div>
+          </div>`).join('') : `<div class="empty"><p>Belum ada resource</p></div>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   VIEW: AGENDA
+   ========================================================= */
+let agendaSort = { key:'start', dir:1 };
+let agendaFilter = 'all';
+
+function viewAgenda(){
+  let list = state.tasks.slice();
+  if(agendaFilter !== 'all') list = list.filter(t => t.status === agendaFilter);
+  list.sort((a,b) => {
+    let va, vb;
+    if(agendaSort.key === 'start'){ va = a.start; vb = b.start; }
+    else if(agendaSort.key === 'weight'){ va = +a.weight; vb = +b.weight; }
+    else if(agendaSort.key === 'priority'){
+      const ord = {critical:0, high:1, medium:2, low:3};
+      va = ord[a.priority]; vb = ord[b.priority];
+    } else if(agendaSort.key === 'title'){ va = a.title.toLowerCase(); vb = b.title.toLowerCase(); }
+    else { va = a[agendaSort.key]; vb = b[agendaSort.key]; }
+    return (va > vb ? 1 : va < vb ? -1 : 0) * agendaSort.dir;
+  });
+
+  const totalW = list.reduce((s,t) => s + (+t.weight||0), 0);
+
+  return `
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+    <button class="btn sm ${agendaFilter==='all'?'primary':''}" data-filter="all">Semua (${state.tasks.length})</button>
+    ${Object.entries(STATUS).map(([k,v]) =>
+      `<button class="btn sm ${agendaFilter===k?'primary':''}" data-filter="${k}">${v.label} (${state.tasks.filter(t=>t.status===k).length})</button>`
+    ).join('')}
+    <div style="flex:1"></div>
+    <span class="hint">Total bobot tampil: <b style="color:var(--txt)">${totalW}</b></span>
+  </div>
+
+  ${list.length ? `
+  <div class="card" style="padding:0;overflow:hidden">
+    <table>
+      <thead>
+        <tr>
+          <th style="cursor:pointer" data-sort="title">Task ${sortIcon('title')}</th>
+          <th style="cursor:pointer" data-sort="assigneeId">PIC</th>
+          <th style="cursor:pointer" data-sort="start">Mulai ${sortIcon('start')}</th>
+          <th>Selesai</th>
+          <th style="cursor:pointer" data-sort="duration">Durasi</th>
+          <th style="cursor:pointer" data-sort="weight">Bobot ${sortIcon('weight')}</th>
+          <th style="cursor:pointer" data-sort="priority">Prioritas ${sortIcon('priority')}</th>
+          <th>Status</th>
+          <th>Progress</th>
+          <th style="width:70px"></th>
+        </tr>
+      </thead>
+      <tbody>
+      ${list.map(t => {
+        const r = resById(t.assigneeId);
+        const late = isOverdue(t);
+        return `<tr data-task="${t.id}">
+          <td style="max-width:280px">
+            <div class="t-title">${esc(t.title)}</div>
+            ${t.desc ? `<div class="t-desc">${esc(t.desc)}</div>` : ''}
+          </td>
+          <td>${r ? `<div class="who"><div class="avatar" style="background:${r.color}">${initials(r.name)}</div><span>${esc(r.name.split(' ')[0])}</span></div>` : '<span class="t-desc">Unassigned</span>'}</td>
+          <td style="color:var(--muted)">${fmtShort(t.start)}</td>
+          <td style="color:${late?'#ff8b96':'var(--muted)'};font-weight:600">${fmtShort(taskEnd(t))}${late?' ⚠':''}</td>
+          <td style="color:var(--muted)">${t.duration} hari</td>
+          <td><span class="badge" style="background:rgba(124,92,255,.16);color:#b9a6ff">${t.weight}</span></td>
+          <td>${prioBadge(t.priority)}</td>
+          <td>${statusBadge(t.status)}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:7px">
+              <div class="pbar"><i style="width:${t.progress||0}%;background:${t.progress>=100?'var(--ok)':'var(--acc)'}"></i></div>
+              <span style="font-size:10.5px;color:var(--muted2);font-weight:600">${t.progress||0}%</span>
+            </div>
+          </td>
+          <td>
+            <button class="btn sm ghost" data-edit="${t.id}" title="Edit">✎</button>
+            <button class="btn sm ghost" data-del="${t.id}" title="Hapus" style="color:#ff8b96">✕</button>
+          </td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>
+  </div>` : `<div class="empty"><div class="big">☰</div><p>Belum ada task pada filter ini</p>
+      <button class="btn primary" data-new>＋ Buat Task Baru</button></div>`}`;
+}
+
+function sortIcon(k){ return agendaSort.key === k ? (agendaSort.dir > 0 ? '▲' : '▼') : ''; }
+
+function prioBadge(p){
+  const x = PRIORITY[p] || PRIORITY.medium;
+  return `<span class="badge" style="background:${hexA(x.color,.15)};color:${x.color}">
+    <span class="dot" style="background:${x.color}"></span>${x.label}</span>`;
+}
+function statusBadge(s){
+  const x = STATUS[s] || STATUS.todo;
+  return `<span class="badge" style="background:${hexA(x.color,.15)};color:${x.color}">${x.label}</span>`;
+}
+function hexA(hex, a){
+  const h = hex.replace('#','');
+  const n = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* =========================================================
+   VIEW: TIMELINE / GANTT
+   ========================================================= */
+function viewTimeline(){
+  const tasks = state.tasks;
+  if(!tasks.length){
+    return `<div class="empty"><div class="big">▬</div><p>Belum ada task untuk ditampilkan</p>
+      <button class="btn primary" data-new>＋ Buat Task Baru</button></div>`;
+  }
+
+  const allStart = tasks.map(t => t.start).sort()[0];
+  const allEnd   = tasks.map(taskEnd).sort().pop();
+  const t0 = todayStr();
+
+  let rangeStart = allStart < t0 ? allStart : t0;
+  let rangeEnd   = allEnd > t0 ? allEnd : t0;
+  // padding 5 hari kerja di kanan
+  rangeEnd = shiftWorkDays(rangeEnd, 5);
+  rangeStart = shiftWorkDays(rangeStart, -2);
+
+  const totalDays = Math.min(daysBetween(rangeStart, rangeEnd) + 1, 260);
+  const dates = [];
+  let cur = parseD(rangeStart);
+  for(let i = 0; i < totalDays; i++){
+    dates.push(ymd(cur));
+    cur = addDays(cur, 1);
+  }
+
+  // Header bulan
+  const months = [];
+  dates.forEach((ds, i) => {
+    const d = parseD(ds);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if(!months.length || months[months.length-1].key !== key){
+      months.push({key, label:`${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, count:1});
+    } else months[months.length-1].count++;
+  });
+
+  // Group by resource
+  const groups = [];
+  state.resources.forEach(r => {
+    const ts = tasks.filter(t => t.assigneeId === r.id)
+                    .sort((a,b) => a.start.localeCompare(b.start));
+    groups.push({resource:r, tasks:ts});
+  });
+  const unassigned = tasks.filter(t => !t.assigneeId || !resById(t.assigneeId));
+  if(unassigned.length) groups.push({resource:null, tasks:unassigned});
+
+  const trackW = totalDays * DAY_W;
+
+  const dayCells = dates.map(ds => {
+    const d = parseD(ds);
+    const off = !isWorkday(d);
+    const cls = ['gantt-day'];
+    if(off) cls.push('off');
+    else if(d.getDay()===0||d.getDay()===6) cls.push('we');
+    if(ds === todayStr()) cls.push('today');
+    return `<div class="${cls.join(' ')}" style="width:${DAY_W}px">${d.getDate()}</div>`;
+  }).join('');
+
+  const gridCells = dates.map(ds => {
+    const d = parseD(ds);
+    const cls = [];
+    if(!isWorkday(d)) cls.push('off');
+    if(ds === todayStr()) cls.push('today');
+    return `<div class="${cls.join(' ')}" style="width:${DAY_W}px"></div>`;
+  }).join('');
+
+  let body = '';
+  groups.forEach(g => {
+    if(!g.tasks.length && g.resource) return; // skip resource kosong? tampilkan tetap
+    const color = g.resource ? g.resource.color : '#6b7280';
+    const name  = g.resource ? g.resource.name : 'Unassigned';
+    const role  = g.resource ? g.resource.role : 'Belum ditugaskan';
+    const wSum  = g.tasks.reduce((s,t)=>s+(+t.weight||0),0);
+
+    body += `<div class="gantt-group">
+      <div class="gl">
+        <div class="avatar" style="background:${color};width:20px;height:20px;font-size:9px">${initials(name)}</div>
+        <span>${esc(name)}</span>
+        <span style="margin-left:auto;font-size:10.5px;color:var(--muted2);font-weight:600">${wSum} bobot</span>
+      </div>
+      <div style="width:${trackW}px"></div>
+    </div>`;
+
+    if(!g.tasks.length){
+      body += `<div class="gantt-row" style="opacity:.45">
+        <div class="gantt-label"><div class="nm" style="color:var(--muted2)">— tidak ada task —</div></div>
+        <div class="gantt-track" style="width:${trackW}px">
+          <div class="gantt-grid">${gridCells}</div>
+        </div></div>`;
+      return;
+    }
+
+    g.tasks.forEach(t => {
+      const end = taskEnd(t);
+      const offset = Math.max(0, daysBetween(rangeStart, t.start));
+      const span = Math.max(1, daysBetween(t.start, end) + 1);
+      const left = offset * DAY_W;
+      const width = Math.min(span * DAY_W - 4, trackW - left - 2);
+      const pc = (PRIORITY[t.priority]||PRIORITY.medium).color;
+      const done = t.status === 'done';
+
+      body += `<div class="gantt-row">
+        <div class="gantt-label">
+          <div class="nm">${esc(t.title)}</div>
+          <div class="mt">${fmtShort(t.start)} → ${fmtShort(end)} · ${t.duration}h · bobot ${t.weight}</div>
+        </div>
+        <div class="gantt-track" style="width:${trackW}px">
+          <div class="gantt-grid">${gridCells}</div>
+          <div class="bar" data-edit="${t.id}"
+               style="left:${left}px;width:${width}px;background:${pc};${done?'opacity:.55':''}"
+               title="${esc(t.title)} | ${fmtID(t.start)} → ${fmtID(end)} | Bobot ${t.weight}">
+            <i class="pfill" style="width:${t.progress||0}%"></i>
+            <span>${esc(t.title)}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+  });
+
+  const legend = Object.entries(PRIORITY).map(([k,v]) =>
+    `<b><i style="background:${v.color}"></i>${v.label}</b>`).join('');
+
+  return `
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+    <div class="legend">
+      <span style="font-weight:700;color:var(--muted2)">Prioritas:</span>${legend}
+      <b><i style="background:#12151c;border:1px solid #2a3040"></i>Libur</b>
+      <b><i style="background:rgba(74,125,255,.35)"></i>Hari ini</b>
+    </div>
+    <div style="flex:1"></div>
+    <span class="hint">Klik bar untuk edit task</span>
+  </div>
+  <div class="gantt-wrap">
+    <div class="gantt">
+      <div class="gantt-head">
+        <div class="gantt-corner">Resource / Task</div>
+        <div>
+          <div class="gantt-months">
+            ${months.map(m => `<div class="gantt-month" style="width:${m.count*DAY_W}px">${m.label}</div>`).join('')}
+          </div>
+          <div class="gantt-daynums">${dayCells}</div>
+        </div>
+      </div>
+      <div class="gantt-body">${body}</div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   VIEW: CALENDAR
+   ========================================================= */
+function viewCalendar(){
+  const y = calCursor.getFullYear();
+  const m = calCursor.getMonth();
+  const first = new Date(y, m, 1);
+  const startOffset = first.getDay();           // 0 = Minggu
+  const gridStart = addDays(first, -startOffset);
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const rows = Math.ceil((startOffset + daysInMonth) / 7);
+
+  let cells = '';
+  for(let i = 0; i < rows * 7; i++){
+    const d = addDays(gridStart, i);
+    const ds = ymd(d);
+    const out = d.getMonth() !== m;
+    const off = !isWorkday(d);
+    const cls = ['cal-cell'];
+    if(out) cls.push('out');
+    if(off && !out) cls.push('off');
+    if(ds === todayStr()) cls.push('today');
+
+    const dayTasks = state.tasks.filter(t => taskInRange(t, ds))
+      .sort((a,b) => {
+        const ord = {critical:0,high:1,medium:2,low:3};
+        return ord[a.priority] - ord[b.priority];
+      });
+
+    const shown = dayTasks.slice(0, 3);
+    cells += `<div class="${cls.join(' ')}" data-day="${ds}">
+      <div class="cal-num">${d.getDate()}${off ? ' <span style="font-size:9px;color:#4a5164">libur</span>' : ''}</div>
+      ${shown.map(t => {
+        const c = (PRIORITY[t.priority]||PRIORITY.medium).color;
+        return `<div class="cal-chip" data-edit="${t.id}"
+          style="border-left-color:${c};color:${t.status==='done'?'var(--muted2)':'var(--txt)'};
+          ${t.status==='done'?'text-decoration:line-through':''}"
+          title="${esc(t.title)} · bobot ${t.weight}">${esc(t.title)}</div>`;
+      }).join('')}
+      ${dayTasks.length > 3 ? `<div class="cal-more">+${dayTasks.length-3} lainnya</div>` : ''}
+    </div>`;
+  }
+
+  return `
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <button class="btn" data-cal="-1">‹</button>
+    <button class="btn" data-cal="0">Bulan Ini</button>
+    <button class="btn" data-cal="1">›</button>
+    <div style="font-size:15px;font-weight:700;margin-left:6px">
+      ${MONTH_NAMES[m]} ${y}
+    </div>
+    <div style="flex:1"></div>
+    <div class="legend">
+      ${Object.entries(PRIORITY).map(([k,v])=>`<b><i style="background:${v.color}"></i>${v.label}</b>`).join('')}
+    </div>
+  </div>
+  <div class="cal-head">
+    ${DAY_NAMES.map((n,i)=>`<div class="${i===0||i===6?'we':''}">${n}</div>`).join('')}
+  </div>
+  <div class="cal-grid">${cells}</div>`;
+}
+
+/* =========================================================
+   VIEW: RESOURCES
+   ========================================================= */
+function viewResources(){
+  return `
+  <div style="margin-bottom:14px">
+    <button class="btn primary" data-new-res>＋ Tambah Resource</button>
+  </div>
+  ${state.resources.length ? `
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
+    ${state.resources.map(r => {
+      const ts = state.tasks.filter(t => t.assigneeId === r.id);
+      const active = ts.filter(t => t.status !== 'done');
+      const weight = active.reduce((s,t)=>s+(+t.weight||0),0);
+      const doneC = ts.filter(t=>t.status==='done').length;
+      return `<div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div class="avatar" style="background:${r.color};width:40px;height:40px;font-size:14px">${initials(r.name)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13.5px;font-weight:700">${esc(r.name)}</div>
+            <div style="font-size:11px;color:var(--muted2)">${esc(r.role)}</div>
+          </div>
+          <button class="btn sm ghost" data-edit-res="${r.id}" title="Edit">✎</button>
+          <button class="btn sm ghost" data-del-res="${r.id}" title="Hapus" style="color:#ff8b96">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+          <div><div class="lbl" style="font-size:10px;color:var(--muted2);font-weight:700">AKTIF</div>
+               <div style="font-size:18px;font-weight:800">${active.length}</div></div>
+          <div><div class="lbl" style="font-size:10px;color:var(--muted2);font-weight:700">BOBOT</div>
+               <div style="font-size:18px;font-weight:800;color:${r.color}">${weight}</div></div>
+          <div><div class="lbl" style="font-size:10px;color:var(--muted2);font-weight:700">SELESAI</div>
+               <div style="font-size:18px;font-weight:800;color:var(--ok)">${doneC}</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          ${active.slice(0,4).map(t => `
+            <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;cursor:pointer"
+                 data-edit="${t.id}">
+              <span style="width:6px;height:6px;border-radius:50%;background:${(PRIORITY[t.priority]||PRIORITY.medium).color};flex-shrink:0"></span>
+              <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">${esc(t.title)}</span>
+              <span style="color:var(--muted2);font-weight:600;font-size:10.5px">${fmtShort(taskEnd(t))}</span>
+            </div>`).join('') || '<div style="font-size:11.5px;color:var(--muted2)">Tidak ada task aktif</div>'}
+          ${active.length > 4 ? `<div style="font-size:11px;color:var(--muted2);font-weight:600">+${active.length-4} lainnya</div>` : ''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>` : `<div class="empty"><div class="big">◉</div><p>Belum ada resource</p>
+      <button class="btn primary" data-new-res>＋ Tambah Resource</button></div>`}`;
+}
+
+/* =========================================================
+   VIEW: SETTINGS
+   ========================================================= */
+function viewSettings(){
+  const wd = state.settings.workDays;
+  const totalHoliday = state.settings.holidays.length;
+
+  return `
+  <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start;max-width:1000px">
+    <div class="card">
+      <h3>📅 Hari Kerja Mingguan</h3>
+      <p class="hint" style="margin-bottom:12px">
+        Centang hari yang dianggap hari kerja. Hari yang tidak dicentang akan dihitung
+        sebagai libur dan dilewati saat menghitung durasi task.
+      </p>
+      <div class="chk-row">
+        ${DAY_NAMES.map((n,i) => `
+          <label class="chk ${wd.includes(i)?'on':''}" data-day="${i}">
+            <input type="checkbox" ${wd.includes(i)?'checked':''} data-toggle-day="${i}">
+            ${n}
+          </label>`).join('')}
+      </div>
+      <div class="preview" style="margin-top:14px">
+        Hari kerja aktif: <b>${wd.slice().sort().map(i=>DAY_NAMES[i]).join(', ') || '—'}</b>
+      </div>
+
+      <div class="field" style="margin-top:18px">
+        <label>Jam Kerja per Hari</label>
+        <input type="number" min="1" max="24" value="${state.settings.hoursPerDay}" id="hours-input" style="max-width:140px">
+        <div class="hint">Digunakan untuk estimasi kapasitas harian tim.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🏖 Tanggal Libur / Cuti Bersama</h3>
+      <p class="hint" style="margin-bottom:12px">
+        Tanggal di bawah ini akan dianggap libur walaupun jatuh pada hari kerja.
+      </p>
+      <div style="display:flex;gap:8px">
+        <input type="date" id="holiday-input"
+          style="flex:1;background:var(--bg3);border:1px solid var(--line);border-radius:7px;
+                 padding:8px 10px;color:var(--txt);font:inherit;outline:none">
+        <button class="btn primary" id="add-holiday">Tambah</button>
+      </div>
+      <div class="holiday-list">
+        ${totalHoliday ? state.settings.holidays.slice().sort().map(h => `
+          <div class="hchip">${fmtID(h)}
+            <button data-del-holiday="${h}" title="Hapus">×</button>
+          </div>`).join('')
+        : '<span class="hint">Belum ada tanggal libur.</span>'}
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;max-width:1000px">
+    <h3>💾 Data</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="btn-export">⬇ Export JSON</button>
+      <button class="btn" id="btn-import">⬆ Import JSON</button>
+      <button class="btn danger" id="btn-reset">↺ Reset ke Data Contoh</button>
+      <input type="file" id="file-input" accept=".json" style="display:none">
+    </div>
+    <div class="hint" style="margin-top:10px">
+      Data disimpan otomatis di <b>localStorage</b> browser Anda.
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   MODAL: TASK
+   ========================================================= */
+function openTaskModal(taskId, presetDate){
+  const t = taskId ? state.tasks.find(x => x.id === taskId) : null;
+  const isEdit = !!t;
+
+  const data = t ? {...t} : {
+    title:'', desc:'', assigneeId: state.resources[0]?.id || '',
+    start: presetDate || todayStr(), duration:3, weight:10,
+    priority:'medium', status:'todo', progress:0
+  };
+
+  const endPreview = endDateOf(data.start, data.duration);
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-head">
+      <h3>${isEdit ? '✎ Edit Task' : '＋ Task Baru'}</h3>
+      <button class="btn ghost sm" data-close>✕</button>
+    </div>
+    <form id="task-form">
+      <div class="modal-body">
+        <div class="field">
+          <label>Judul Task *</label>
+          <input name="title" required maxlength="120" value="${esc(data.title)}"
+                 placeholder="Contoh: Implementasi halaman checkout" autofocus>
+        </div>
+        <div class="field">
+          <label>Deskripsi</label>
+          <textarea name="desc" maxlength="400" placeholder="Detail pekerjaan, acceptance criteria, dll.">${esc(data.desc)}</textarea>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Penanggung Jawab</label>
+            <select name="assigneeId">
+              <option value="">— Unassigned —</option>
+              ${state.resources.map(r =>
+                `<option value="${r.id}" ${r.id===data.assigneeId?'selected':''}>${esc(r.name)} — ${esc(r.role)}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Prioritas</label>
+            <select name="priority">
+              ${Object.entries(PRIORITY).map(([k,v]) =>
+                `<option value="${k}" ${k===data.priority?'selected':''}>${v.label}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Tanggal Mulai *</label>
+            <input type="date" name="start" required value="${data.start}">
+          </div>
+          <div class="field">
+            <label>Durasi (hari kerja) *</label>
+            <input type="number" name="duration" min="1" max="365" required value="${data.duration}">
+          </div>
+        </div>
+        <div class="preview" id="preview-end">
+          Estimasi selesai: <b>${fmtID(endPreview)}</b> · ${data.duration} hari kerja
+        </div>
+        <div class="row3">
+          <div class="field">
+            <label>Bobot Pekerjaan</label>
+            <input type="number" name="weight" min="1" max="100" required value="${data.weight}">
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select name="status">
+              ${Object.entries(STATUS).map(([k,v]) =>
+                `<option value="${k}" ${k===data.status?'selected':''}>${v.label}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Progress (%)</label>
+            <input type="number" name="progress" min="0" max="100" value="${data.progress||0}">
+          </div>
+        </div>
+        <div class="hint">
+          Bobot menunjukkan besar/kecilnya pekerjaan relatif terhadap task lain (1–100).
+          Total bobot seluruh task akan dihitung pada dashboard.
+        </div>
+      </div>
+      <div class="modal-foot">
+        <div class="left">
+          ${isEdit ? `<button type="button" class="btn danger" data-del="${t.id}">🗑 Hapus</button>` : ''}
+        </div>
+        <button type="button" class="btn" data-close>Batal</button>
+        <button type="submit" class="btn primary">${isEdit ? 'Simpan Perubahan' : 'Buat Task'}</button>
+      </div>
+    </form>`;
+
+  showOverlay();
+
+  const form = document.getElementById('task-form');
+  const startI = form.querySelector('[name=start]');
+  const durI   = form.querySelector('[name=duration]');
+  const prev   = document.getElementById('preview-end');
+
+  function updatePreview(){
+    const s = startI.value, d = Math.max(1, parseInt(durI.value)||1);
+    if(!s) return;
+    const e = endDateOf(s, d);
+    const isOff = !isWorkday(parseD(s));
+    prev.innerHTML = `Estimasi selesai: <b>${fmtID(e)}</b> · ${d} hari kerja` +
+      (isOff ? ` <span style="color:#ff9f43">(tanggal mulai jatuh di hari libur, akan digeser otomatis)</span>` : '');
+  }
+  startI.addEventListener('change', updatePreview);
+  durI.addEventListener('input', updatePreview);
+
+  form.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const fd = new FormData(form);
+    const obj = {
+      title: (fd.get('title')||'').trim(),
+      desc: (fd.get('desc')||'').trim(),
+      assigneeId: fd.get('assigneeId') || '',
+      priority: fd.get('priority'),
+      start: fd.get('start'),
+      duration: Math.max(1, parseInt(fd.get('duration'))||1),
+      weight: Math.min(100, Math.max(1, parseInt(fd.get('weight'))||1)),
+      status: fd.get('status'),
+      progress: Math.min(100, Math.max(0, parseInt(fd.get('progress'))||0))
+    };
+    if(!obj.title) return;
+
+    if(isEdit){
+      Object.assign(t, obj);
+      toast('Task diperbarui');
+    } else {
+      state.tasks.push({id: uid(), ...obj});
+      toast('Task berhasil dibuat');
+    }
+    save(); closeOverlay(); render();
+  });
+}
+
+/* =========================================================
+   MODAL: RESOURCE
+   ========================================================= */
+const PALETTE = ['#4a7dff','#22c55e','#a855f7','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16'];
+
+function openResourceModal(id){
+  const r = id ? state.resources.find(x => x.id === id) : null;
+  const isEdit = !!r;
+  const data = r || {name:'', role:'', color: PALETTE[state.resources.length % PALETTE.length]};
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-head">
+      <h3>${isEdit ? '✎ Edit Resource' : '＋ Resource Baru'}</h3>
+      <button class="btn ghost sm" data-close>✕</button>
+    </div>
+    <form id="res-form">
+      <div class="modal-body">
+        <div class="field">
+          <label>Nama *</label>
+          <input name="name" required maxlength="60" value="${esc(data.name)}" placeholder="Nama anggota tim" autofocus>
+        </div>
+        <div class="field">
+          <label>Role / Posisi</label>
+          <input name="role" maxlength="60" value="${esc(data.role)}" placeholder="Frontend Developer, QA, PM, dll.">
+        </div>
+        <div class="field">
+          <label>Warna</label>
+          <div class="chk-row" id="color-row">
+            ${PALETTE.map(c => `
+              <label class="chk ${c===data.color?'on':''}" style="padding:6px 10px" data-color="${c}">
+                <input type="radio" name="color" value="${c}" ${c===data.color?'checked':''}>
+                <span style="width:16px;height:16px;border-radius:5px;background:${c};display:inline-block"></span>
+              </label>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <div class="left">
+          ${isEdit ? `<button type="button" class="btn danger" data-del-res="${r.id}">🗑 Hapus</button>` : ''}
+        </div>
+        <button type="button" class="btn" data-close>Batal</button>
+        <button type="submit" class="btn primary">${isEdit ? 'Simpan' : 'Tambah'}</button>
+      </div>
+    </form>`;
+
+  showOverlay();
+
+  const form = document.getElementById('res-form');
+  form.querySelectorAll('[name=color]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      form.querySelectorAll('#color-row .chk').forEach(l =>
+        l.classList.toggle('on', l.dataset.color === inp.value));
+    });
+  });
+
+  form.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const fd = new FormData(form);
+    const obj = {
+      name: (fd.get('name')||'').trim(),
+      role: (fd.get('role')||'').trim() || 'Anggota Tim',
+      color: fd.get('color') || PALETTE[0]
+    };
+    if(!obj.name) return;
+    if(isEdit) Object.assign(r, obj);
+    else state.resources.push({id: uid(), ...obj});
+    save(); closeOverlay(); render();
+    toast(isEdit ? 'Resource diperbarui' : 'Resource ditambahkan');
+  });
+}
+
+/* =========================================================
+   OVERLAY
+   ========================================================= */
+function showOverlay(){ document.getElementById('overlay').classList.add('show'); }
+function closeOverlay(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('modal').innerHTML = '';
+}
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+let toastTimer;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+/* =========================================================
+   EVENT DELEGATION
+   ========================================================= */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-view],[data-task],[data-edit],[data-del],[data-new],' +
+    '[data-new-res],[data-edit-res],[data-del-res],[data-sort],[data-filter],[data-cal],' +
+    '[data-close],[data-day],[data-del-holiday],[data-toggle-day]');
+  if(!el) return;
+
+  // Navigasi
+  if(el.dataset.view){
+    view = el.dataset.view;
+    render();
+    return;
+  }
+
+  // Ganti bulan kalender
+  if(el.dataset.cal !== undefined){
+    const v = parseInt(el.dataset.cal);
+    if(v === 0) calCursor = new Date();
+    else calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + v, 1);
+    render();
+    return;
+  }
+
+  // Sorting agenda
+  if(el.dataset.sort){
+    const k = el.dataset.sort;
+    if(agendaSort.key === k) agendaSort.dir *= -1;
+    else { agendaSort.key = k; agendaSort.dir = 1; }
+    render();
+    return;
+  }
+
+  // Filter agenda
+  if(el.dataset.filter){
+    agendaFilter = el.dataset.filter;
+    render();
+    return;
+  }
+
+  // Toggle hari kerja
+  if(el.dataset.toggleDay !== undefined){
+    e.preventDefault();
+    const d = parseInt(el.dataset.toggleDay);
+    const arr = state.settings.workDays;
+    const i = arr.indexOf(d);
+    if(i >= 0) arr.splice(i,1); else arr.push(d);
+    save(); render();
+    return;
+  }
+
+  // Hapus hari libur
+  if(el.dataset.delHoliday){
+    state.settings.holidays = state.settings.holidays.filter(h => h !== el.dataset.delHoliday);
+    save(); render();
+    return;
+  }
+
+  // Task baru
+  if(el.dataset.new !== undefined || el.id === 'btn-new-task'){
+    openTaskModal(null, el.dataset.day || null);
+    return;
+  }
+
+  // Resource baru
+  if(el.dataset.newRes !== undefined){
+    openResourceModal(null);
+    return;
+  }
+
+  // Edit / hapus resource
+  if(el.dataset.editRes){ openResourceModal(el.dataset.editRes); return; }
+  if(el.dataset.delRes){
+    const id = el.dataset.delRes;
+    if(confirm('Hapus resource ini? Task terkait akan menjadi Unassigned.')){
+      state.resources = state.resources.filter(r => r.id !== id);
+      state.tasks.forEach(t => { if(t.assigneeId === id) t.assigneeId = ''; });
+      save(); closeOverlay(); render(); toast('Resource dihapus');
+    }
+    return;
+  }
+
+  // Edit task
+  if(el.dataset.edit){ e.stopPropagation(); openTaskModal(el.dataset.edit); return; }
+
+  // Hapus task
+  if(el.dataset.del){
+    const id = el.dataset.del;
+    if(confirm('Hapus task ini?')){
+      state.tasks = state.tasks.filter(t => t.id !== id);
+      save(); closeOverlay(); render(); toast('Task dihapus');
+    }
+    return;
+  }
+
+  // Tutup modal
+  if(el.dataset.close !== undefined){ closeOverlay(); return; }
+
+  // Klik baris task di tabel
+  const row = e.target.closest('tr[data-task]');
+  if(row && !e.target.closest('button')){
+    openTaskModal(row.dataset.task);
+  }
+});
+
+// Klik di luar modal
+document.getElementById('overlay').addEventListener('click', e => {
+  if(e.target.id === 'overlay') closeOverlay();
+});
+
+// ESC
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeOverlay();
+  if(e.key === 'n' && !e.metaKey && !e.ctrlKey && !e.target.matches('input,textarea,select')){
+    e.preventDefault(); openTaskModal();
+  }
+});
+
+// Tombol topbar
+document.getElementById('btn-new-task').addEventListener('click', () => openTaskModal());
+document.getElementById('btn-today').addEventListener('click', () => {
+  calCursor = new Date();
+  if(view === 'calendar') render();
+  else toast('Hari ini: ' + fmtID(todayStr()));
+});
+
+/* =========================================================
+   SETTINGS: EVENT KHUSUS
+   ========================================================= */
+document.getElementById('view').addEventListener('click', e => {
+  const t = e.target;
+
+  if(t.id === 'add-holiday'){
+    const inp = document.getElementById('holiday-input');
+    if(inp.value && !state.settings.holidays.includes(inp.value)){
+      state.settings.holidays.push(inp.value);
+      save(); render(); toast('Tanggal libur ditambahkan');
+    }
+    return;
+  }
+
+  if(t.id === 'btn-export'){
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `planflow-${todayStr()}.json`;
+    a.click(); URL.revokeObjectURL(a.href);
+    toast('Data diexport');
+    return;
+  }
+
+  if(t.id === 'btn-import'){ document.getElementById('file-input').click(); return; }
+
+  if(t.id === 'btn-reset'){
+    if(confirm('Reset semua data ke contoh awal? Data saat ini akan hilang.')){
+      seed(); render(); toast('Data direset');
+    }
+    return;
+  }
+});
+
+document.getElementById('view').addEventListener('change', e => {
+  if(e.target.id === 'hours-input'){
+    state.settings.hoursPerDay = Math.max(1, Math.min(24, parseInt(e.target.value)||8));
+    save(); toast('Jam kerja diperbarui');
+  }
+  if(e.target.id === 'file-input'){
+    const f = e.target.files[0];
+    if(!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try{
+        const p = JSON.parse(rd.result);
+        if(!p.tasks || !p.resources) throw new Error('format');
+        state = Object.assign(state, p);
+        state.settings = Object.assign({workDays:[1,2,3,4,5], hoursPerDay:8, holidays:[]}, p.settings||{});
+        save(); render(); toast('Data berhasil diimport');
+      }catch(err){ alert('File tidak valid.'); }
+    };
+    rd.readAsText(f);
+  }
+});
+
+/* =========================================================
+   INIT
+   ========================================================= */
+(function init(){
+  if(!load()) seed();
+  render();
+})();
+</script>
+</body>
+</html>
